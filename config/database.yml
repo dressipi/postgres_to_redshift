@@ -1,0 +1,6 @@
+export POSTGRES_TO_REDSHIFT_SOURCE_URI=postgres://#{username}:#{password}@#{endpoint}:#{port}/#{dbname}
+export POSTGRES_TO_REDSHIFT_TARGET_URI=postgres://#{username}:#{password}@#{endpoint}:#{port}/#{dbname}
+export S3_DATABASE_EXPORT_ACCESSKEY=
+export S3_DATABASE_EXPORT_SECRETKEY=
+export S3_DATABASE_EXPORT_BUCKET=dressipi-postgres2redshift-staging
+export POSTGRES_TO_REDSHIFT_MIGRATE=false
