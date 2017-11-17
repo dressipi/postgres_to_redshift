@@ -23,14 +23,15 @@ Or install it yourself as:
 ## Usage
 
 Set your source and target databases, as well as your s3 intermediary.
+If POSTGRES_TO_REDSHIFT_MIGRATE set to true, that means a full copy of the original postgres database, otherwise just schemas and tables.
 
 ```bash
 export POSTGRES_TO_REDSHIFT_SOURCE_URI='postgres://username:password@host:port/database-name'
 export POSTGRES_TO_REDSHIFT_TARGET_URI='postgres://username:password@host:port/database-name'
-export POSTGRES_TO_REDSHIFT_TARGET_SCHEMA='testing-data'
 export S3_DATABASE_EXPORT_ID='yourid'
 export S3_DATABASE_EXPORT_KEY='yourkey'
 export S3_DATABASE_EXPORT_BUCKET='some-bucket-to-use'
+export POSTGRES_TO_REDSHIFT_MIGRATE=false/true
 
 postgres_to_redshift
 ```
