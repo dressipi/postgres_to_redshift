@@ -22,9 +22,7 @@ class PostgresToRedshift
     update_tables = PostgresToRedshift.new
 
     update_tables.schemas.each do |schema| 
-      puts schema
       update_tables.tables(schema: schema).each do |table|
-        puts table
         target_connection.exec("CREATE SCHEMA IF NOT EXISTS #{schema}")
 
         target_connection.exec('CREATE TABLE IF NOT EXISTS ' \
