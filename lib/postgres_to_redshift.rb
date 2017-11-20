@@ -17,6 +17,8 @@ class PostgresToRedshift
   KILOBYTE = 1024
   MEGABYTE = KILOBYTE * 1024
   GIGABYTE = MEGABYTE * 1024
+  SCHEMA_PREFIX = 'activity_'
+  SPECIAL_SCHEMA = ['\'shared_resources\''].join(', ')
 
   def self.update_tables
     update_tables = PostgresToRedshift.new
@@ -89,7 +91,8 @@ class PostgresToRedshift
   end
 
   def schemas
-    select_sql = "SELECT DISTINCT table_schema FROM information_schema.tables WHERE table_schema LIKE 'activity_%'"
+    select_sql = 'SELECT DISTINCT table_schema FROM information_schema.tables ' \
+      "WHERE table_schema LIKE '#{SCHEMA_PREFIX}%' OR table_schema IN (#{SPECIAL_SCHEMA})"
     source_connection.exec(select_sql).map do |schema|
       schema['table_schema']
     end.compact
