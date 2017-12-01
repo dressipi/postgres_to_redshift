@@ -47,6 +47,10 @@ class PostgresToRedshift
       end.join(", ")
     end
 
+    def primary_key
+      attributes['primary_key']
+    end
+
     def is_view?
       attributes["table_type"] == "VIEW"
     end

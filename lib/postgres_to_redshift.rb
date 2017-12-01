@@ -27,9 +27,13 @@ class PostgresToRedshift
       update_tables.tables(schema: schema).each do |table|
         target_connection.exec("CREATE SCHEMA IF NOT EXISTS #{schema}")
 
-        target_connection.exec('CREATE TABLE IF NOT EXISTS ' \
-          "#{schema}.#{target_connection.quote_ident(table.target_table_name)} " \
-          "(#{table.columns_for_create})")
+        ddl = 'CREATE TABLE IF NOT EXISTS '
+        ddl << "#{schema}.#{target_connection.quote_ident(table.target_table_name)} "
+        ddl << '('
+        ddl << "#{table.columns_for_create}"
+        ddl << ", primary key(#{table.primary_key})" if table.primary_key
+        ddl << ')'
+        target_connection.exec(ddl)
         
         if self.migrate?
           update_tables.copy_table(table: table, schema: schema)
@@ -90,6 +94,35 @@ class PostgresToRedshift
     self.class.target_connection
   end
 
+  def schema_sql(schema:)
+      <<-SQL
+        SELECT * 
+        FROM information_schema.tables 
+        LEFT JOIN 
+        (
+            SELECT
+                n.nspname AS table_schema,
+                c.relname AS table_name,
+                f.attname AS primary_key
+            FROM pg_attribute f
+                JOIN pg_class c ON c.oid = f.attrelid
+                JOIN pg_type t ON t.oid = f.atttypid
+                LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = f.attnum
+                LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+                LEFT JOIN pg_constraint p ON p.conrelid = c.oid AND f.attnum = ANY (p.conkey)
+                LEFT JOIN pg_class AS g ON p.confrelid = g.oid
+            WHERE c.relkind = 'r'::char
+                AND n.nspname = '#{schema}'  
+                AND p.contype = 'p' 
+                AND f.attnum > 0
+            ORDER BY f.attnum, n.nspname
+        ) a USING (table_schema, table_name)
+        WHERE table_schema = '#{schema}' 
+            AND table_type = 'BASE TABLE'
+            AND ( table_name NOT LIKE 'temp%' AND table_name NOT LIKE 'tmp%' )
+      SQL
+  end
+
   def schemas
     select_sql = 'SELECT DISTINCT table_schema FROM information_schema.tables ' \
       "WHERE table_schema LIKE '#{SCHEMA_PREFIX}%' OR table_schema IN (#{SPECIAL_SCHEMA})"
@@ -99,9 +132,7 @@ class PostgresToRedshift
   end
 
   def tables(schema:)
-    select_sql = "SELECT * FROM information_schema.tables WHERE table_schema = '#{schema}' " \
-      "AND table_type in ('BASE TABLE', 'VIEW') AND ( table_name NOT LIKE 'temp%' AND table_name NOT LIKE 'tmp%' )"
-    source_connection.exec(select_sql).map do |table_attributes|
+    source_connection.exec(schema_sql(schema: schema)).map do |table_attributes|
       table = Table.new(attributes: table_attributes)
       next if table.name =~ /^pg_/
       table.columns = column_definitions(table: table, schema: schema)
