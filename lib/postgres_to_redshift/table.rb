@@ -26,7 +26,8 @@ class PostgresToRedshift
     alias_method :to_s, :name
 
     def target_table_name
-      name.gsub(/_view$/, '')
+      # name.gsub(/_view$/, '')
+      name
     end
 
     def columns=(column_definitions = [])
