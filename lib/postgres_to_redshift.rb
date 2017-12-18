@@ -94,7 +94,7 @@ class PostgresToRedshift
     self.class.target_connection
   end
 
-  def schema_sql(schema:)
+  def table_select_sql(schema:)
       <<-SQL
         SELECT * 
         FROM information_schema.tables 
@@ -123,16 +123,25 @@ class PostgresToRedshift
       SQL
   end
 
+  def schema_select_sql
+    <<-_SQL
+      SELECT 
+        DISTINCT table_schema 
+      FROM information_schema.tables
+      WHERE ( table_schema LIKE '#{SCHEMA_PREFIX}%' OR table_schema IN (#{SPECIAL_SCHEMA}))
+        AND table_schema != 'activity_template'
+        AND table_schema NOT LIKE 'activity_%_stage'
+    _SQL
+  end
+
   def schemas
-    select_sql = 'SELECT DISTINCT table_schema FROM information_schema.tables ' \
-      "WHERE table_schema LIKE '#{SCHEMA_PREFIX}%' OR table_schema IN (#{SPECIAL_SCHEMA})"
-    source_connection.exec(select_sql).map do |schema|
+    source_connection.exec(schema_select_sql).map do |schema|
       schema['table_schema']
     end.compact
   end
 
   def tables(schema:)
-    source_connection.exec(schema_sql(schema: schema)).map do |table_attributes|
+    source_connection.exec(table_select_sql(schema: schema)).map do |table_attributes|
       table = Table.new(attributes: table_attributes)
       next if table.name =~ /^pg_/
       table.columns = column_definitions(table: table, schema: schema)
