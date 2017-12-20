@@ -17,6 +17,7 @@ class PostgresToRedshift
   KILOBYTE = 1024
   MEGABYTE = KILOBYTE * 1024
   GIGABYTE = MEGABYTE * 1024
+  VIEW_MANAGER_LIVE = ENV['VIEW_MANAGER'] || true
   SCHEMA_PREFIX = 'activity_'
   SPECIAL_SCHEMA = ['\'shared_resources\''].join(', ')
 
@@ -94,6 +95,14 @@ class PostgresToRedshift
     self.class.target_connection
   end
 
+  def copy_table_type
+    if VIEW_MANAGER_LIVE
+      "table_type IN ('BASE TABLE', 'VIEW')"
+    else
+      "table_type = 'BASE TABLE'"
+    end
+  end
+
   def table_select_sql(schema:)
       <<-SQL
         SELECT * 
@@ -118,7 +127,7 @@ class PostgresToRedshift
             ORDER BY f.attnum, n.nspname
         ) a USING (table_schema, table_name)
         WHERE table_schema = '#{schema}' 
-            AND table_type = 'BASE TABLE'
+            AND #{copy_table_type}
             AND ( table_name NOT LIKE 'temp%' AND table_name NOT LIKE 'tmp%' )
       SQL
   end
