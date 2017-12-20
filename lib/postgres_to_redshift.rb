@@ -17,7 +17,7 @@ class PostgresToRedshift
   KILOBYTE = 1024
   MEGABYTE = KILOBYTE * 1024
   GIGABYTE = MEGABYTE * 1024
-  VIEW_MANAGER_LIVE = ENV['VIEW_MANAGER'] || true
+  VIEW_MANAGER_LIVE = ENV['VIEW_MANAGER'] || 'true'
   SCHEMA_PREFIX = 'activity_'
   SPECIAL_SCHEMA = ['\'shared_resources\''].join(', ')
 
@@ -26,7 +26,7 @@ class PostgresToRedshift
 
     update_tables.schemas.each do |schema| 
       update_tables.tables(schema: schema).each do |table|
-        target_connection.exec("CREATE SCHEMA IF NOT EXISTS #{schema}")
+        target_connection.exec("CREATE SCHEMA IF NOT EXISTS #{schema}") unless schema_exist? schema
 
         ddl = 'CREATE TABLE IF NOT EXISTS '
         ddl << "#{schema}.#{target_connection.quote_ident(table.target_table_name)} "
@@ -87,6 +87,11 @@ class PostgresToRedshift
     end
   end
 
+  def self.schema_exist?(schema)
+    schema_exist_query = "SELECT count(schema_name) FROM information_schema.schemata WHERE schema_name = '#{schema}'"
+    1 == target_connection.exec(schema_exist_query).values[0][0].to_i
+  end
+
   def source_connection
     self.class.source_connection
   end
@@ -96,10 +101,10 @@ class PostgresToRedshift
   end
 
   def copy_table_type
-    if VIEW_MANAGER_LIVE
-      "table_type IN ('BASE TABLE', 'VIEW')"
-    else
+    if VIEW_MANAGER_LIVE.downcase == 'true'
       "table_type = 'BASE TABLE'"
+    else
+      "table_type IN ('BASE TABLE', 'VIEW')"
     end
   end
 
