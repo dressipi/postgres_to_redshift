@@ -30,5 +30,8 @@ export PGUSER=
 export PGPASSWORD=
 export PGDATABASE=
 
+# if view manager is not live yet and we want to copy the views as well in order to test Rspec in Warehouse-Analysis:
+export VIEW_MANAGER_LIVE=false
+
 ./bin/postgres_to_redshift
 ```
