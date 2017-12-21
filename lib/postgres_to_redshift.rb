@@ -8,16 +8,13 @@ require "postgres_to_redshift/table"
 require "postgres_to_redshift/column"
 
 class PostgresToRedshift
-  class << self
-    attr_accessor :source_uri, :target_uri
+  def initialize(dbname:)
+    @dbname = dbname
   end
-
-  attr_reader :source_connection, :target_connection
 
   KILOBYTE = 1024
   MEGABYTE = KILOBYTE * 1024
   GIGABYTE = MEGABYTE * 1024
-  VIEW_MANAGER_LIVE = ENV['VIEW_MANAGER'] || 'true'
   SCHEMA_PREFIX = 'activity_'
   SPECIAL_SCHEMA = ['\'shared_resources\''].join(', ')
 
@@ -46,15 +43,15 @@ class PostgresToRedshift
     end
   end
 
-  def self.source_uri
+  def source_uri
     @source_uri ||= URI.parse(ENV['POSTGRES_TO_REDSHIFT_SOURCE_URI'])
   end
 
-  def self.target_uri
+  def target_uri
     @target_uri ||= URI.parse(ENV['POSTGRES_TO_REDSHIFT_TARGET_URI'])
   end
 
-  def self.source_connection
+  def source_connection
     unless instance_variable_defined?(:"@source_connection")
       @source_connection = PG::Connection.new(
         host: source_uri.host, 
@@ -68,14 +65,14 @@ class PostgresToRedshift
     @source_connection
   end
 
-  def self.target_connection
+  def target_connection
     unless instance_variable_defined?(:"@target_connection")
       @target_connection = PG::Connection.new(
         host: target_uri.host, 
         port: target_uri.port, 
         user: target_uri.user || ENV['USER'], 
         password: target_uri.password, 
-        dbname: target_uri.path[1..-1])
+        dbname: @dbname)
     end
 
     @target_connection
@@ -97,14 +94,6 @@ class PostgresToRedshift
   def database_exist?(database_name)
     db_exist_query = "SELECT 1 AS result FROM pg_database WHERE datname='#{database_name}'"
     !target_connection.exec(db_exist_query).values.empty?
-  end
-
-  def source_connection
-    self.class.source_connection
-  end
-
-  def target_connection
-    self.class.target_connection
   end
 
   def copy_table_type
@@ -252,5 +241,10 @@ class PostgresToRedshift
       "GZIP TRUNCATECOLUMNS ESCAPE DELIMITER as '|'")
 
     target_connection.exec("COMMIT")
+  end
+
+  def close_connections
+    target_connection.close
+    source_connection.close
   end
 end
