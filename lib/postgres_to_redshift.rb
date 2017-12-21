@@ -21,13 +21,15 @@ class PostgresToRedshift
   SCHEMA_PREFIX = 'activity_'
   SPECIAL_SCHEMA = ['\'shared_resources\''].join(', ')
 
-  def self.update_tables
-    update_tables = PostgresToRedshift.new
+  def create_database(database_name:)
+    target_connection.exec("CREATE DATABASE #{database_name}") unless database_exist? database_name
+  end
 
-    update_tables.schemas.each do |schema| 
-      update_tables.tables(schema: schema).each do |table|
-        target_connection.exec("CREATE SCHEMA IF NOT EXISTS #{schema}") unless schema_exist? schema
+  def update_tables
+    schemas.each do |schema| 
+      target_connection.exec("CREATE SCHEMA IF NOT EXISTS #{schema}") unless schema_exist? schema
 
+      tables(schema: schema).each do |table|
         ddl = 'CREATE TABLE IF NOT EXISTS '
         ddl << "#{schema}.#{target_connection.quote_ident(table.target_table_name)} "
         ddl << '('
@@ -36,9 +38,9 @@ class PostgresToRedshift
         ddl << ')'
         target_connection.exec(ddl)
         
-        if self.migrate?
-          update_tables.copy_table(table: table, schema: schema)
-          update_tables.import_table(table: table, schema: schema)
+        if migrate?
+          copy_table(table: table, schema: schema)
+          import_table(table: table, schema: schema)
         end
       end
     end
@@ -79,17 +81,22 @@ class PostgresToRedshift
     @target_connection
   end
 
-  def self.migrate?
-    if ENV.has_key? 'POSTGRES_TO_REDSHIFT_MIGRATE' and (ENV.fetch('POSTGRES_TO_REDSHIFT_MIGRATE') == 'true')
+  def migrate?
+    if ENV.has_key? 'POSTGRES_TO_REDSHIFT_MIGRATE' and (ENV.fetch('POSTGRES_TO_REDSHIFT_MIGRATE').downcase == 'true')
       true
     else
       false
     end
   end
 
-  def self.schema_exist?(schema)
-    schema_exist_query = "SELECT count(schema_name) FROM information_schema.schemata WHERE schema_name = '#{schema}'"
-    1 == target_connection.exec(schema_exist_query).values[0][0].to_i
+  def schema_exist?(schema)
+    schema_exist_query = "SELECT 1 FROM information_schema.schemata WHERE schema_name = '#{schema}'"
+    !target_connection.exec(schema_exist_query).values.empty?
+  end
+
+  def database_exist?(database_name)
+    db_exist_query = "SELECT 1 AS result FROM pg_database WHERE datname='#{database_name}'"
+    !target_connection.exec(db_exist_query).values.empty?
   end
 
   def source_connection
@@ -101,10 +108,10 @@ class PostgresToRedshift
   end
 
   def copy_table_type
-    if VIEW_MANAGER_LIVE.downcase == 'true'
-      "table_type = 'BASE TABLE'"
-    else
+    if ENV.has_key? 'VIEW_MANAGER_LIVE' and (ENV.fetch('VIEW_MANAGER_LIVE').downcase == 'false')
       "table_type IN ('BASE TABLE', 'VIEW')"
+    else
+      "table_type = 'BASE TABLE'"
     end
   end
 
