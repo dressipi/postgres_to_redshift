@@ -1,9 +1,6 @@
-require "postgres_to_redshift/version"
 require 'pg'
 require 'uri'
-require 'aws-sdk'
-require 'zlib'
-require 'tempfile'
+require "postgres_to_redshift/version"
 require "postgres_to_redshift/table"
 require "postgres_to_redshift/column"
 
