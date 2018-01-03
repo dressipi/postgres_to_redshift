@@ -4,17 +4,18 @@ default_dbname = 'redshift'
 conn = PostgresToRedshift.new(dbname: default_dbname)
 
 database_names = %w(jessica jjg yisheng nick daria fred)
-database_names.each do |db_name|
-  %w(dev test).each do |env|
-    dbname = "#{db_name}_#{env}"
-    puts "Initialising database: #{dbname}..."
-    begin
+begin
+  database_names.each do |db_name|
+    %w(dev test).each do |env|
+      dbname = "#{db_name}_#{env}"
+      puts "Initialising database: #{dbname}..."
       conn.create_database(database_name: dbname)
+      conn.close_connections
       conn = PostgresToRedshift.new(dbname: dbname)
       conn.update_tables
       puts "Database: #{dbname} has been created"
-    ensure
-      conn.close_connections
     end
   end
+ensure
+  conn.close_connections
 end
