@@ -43,7 +43,7 @@ class PostgresToRedshift
     unless instance_variable_defined?(:"@source_connection")
       @source_connection = PG::Connection.new(
         host: ENV.fetch('PGHOST'), 
-        port: 5432, 
+        port: ENV.fetch('PGPORT'), 
         user: ENV.fetch('PGUSER'), 
         password: ENV.fetch('PGPASSWORD'), 
         dbname: ENV.fetch('PGDATABASE'))
