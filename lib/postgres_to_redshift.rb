@@ -109,7 +109,10 @@ class PostgresToRedshift
         ) a USING (table_schema, table_name)
         WHERE table_schema = '#{schema}' 
             AND #{copy_table_type}
-            AND ( table_name NOT LIKE 'temp%' AND table_name NOT LIKE 'tmp%' )
+            AND ( 
+                table_name NOT LIKE 'temp%' 
+                AND table_name NOT LIKE 'tmp%' 
+                AND table_name NOT LIKE 'mv_%')
       SQL
   end
 
