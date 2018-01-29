@@ -13,6 +13,7 @@ class PostgresToRedshift
   MEGABYTE = KILOBYTE * 1024
   GIGABYTE = MEGABYTE * 1024
   SCHEMA_PREFIX = 'activity_'
+  SECONDARY_SCHEMA_PREFIX = 'subapp_'
   SPECIAL_SCHEMA = ['\'shared_resources\''].join(', ')
 
   def create_database(database_name:)
@@ -121,7 +122,7 @@ class PostgresToRedshift
       SELECT 
         DISTINCT table_schema 
       FROM information_schema.tables
-      WHERE ( table_schema LIKE '#{SCHEMA_PREFIX}%' OR table_schema IN (#{SPECIAL_SCHEMA}))
+      WHERE ( table_schema LIKE '#{SCHEMA_PREFIX}%' OR table_schema LIKE '#{SECONDARY_SCHEMA_PREFIX}%' OR table_schema IN (#{SPECIAL_SCHEMA}))
         AND table_schema != 'activity_template'
         AND table_schema NOT LIKE 'activity_%_stage'
     _SQL
