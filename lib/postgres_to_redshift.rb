@@ -5,8 +5,12 @@ require "postgres_to_redshift/table"
 require "postgres_to_redshift/column"
 
 class PostgresToRedshift
-  def initialize(dbname:)
+  attr_reader :dbname, :dbuser, :dbpwd
+
+  def initialize(dbname:, dbuser: nil, dbpwd: nil)
     @dbname = dbname
+    @dbuser = dbuser
+    @dbpwd = dbpwd
   end
 
   KILOBYTE = 1024
@@ -59,8 +63,8 @@ class PostgresToRedshift
       @target_connection = PG::Connection.new(
         host: target_uri.host, 
         port: target_uri.port, 
-        user: target_uri.user, 
-        password: target_uri.password, 
+        user: @dbuser || target_uri.user, 
+        password: @dbpwd || target_uri.password, 
         dbname: @dbname)
     end
 
