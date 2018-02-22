@@ -29,11 +29,12 @@ class PostgresToRedshift
       target_connection.exec("CREATE SCHEMA IF NOT EXISTS #{schema}") unless schema_exist? schema
 
       tables(schema: schema).each do |table|
+
         ddl = 'CREATE TABLE IF NOT EXISTS '
         ddl << "#{schema}.#{target_connection.quote_ident(table.target_table_name)} "
         ddl << '('
         ddl << "#{table.columns_for_create}"
-        ddl << ", primary key(#{table.primary_key.map {|name| %Q["#{name}"]}.join(', ')})" if table.primary_key && !table.primary_key.empty?
+        ddl << ", primary key(#{table.primary_key_columns.map {|name| %Q["#{name}"]}.join(', ')})" if table.primary_key && table.primary_key_columns.any?
         ddl << ')'
         target_connection.exec(ddl)
       end
