@@ -65,7 +65,7 @@ class PostgresToRedshift
         port: target_uri.port, 
         user: @dbuser || target_uri.user, 
         password: @dbpwd || target_uri.password, 
-        dbname: @dbname)
+        dbname: @dbname || target_uri.path.gsub('/', ''))
     end
 
     @target_connection
