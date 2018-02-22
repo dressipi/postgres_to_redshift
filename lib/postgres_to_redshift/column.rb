@@ -79,7 +79,16 @@ class PostgresToRedshift::Column
   end
 
   def data_type_for_copy
-    CAST_TYPES_FOR_COPY[data_type] || data_type
+    case data_type
+    when 'character varying'
+      #postgres counts in characters but redshift counts in bytes
+      #so we need to multiply by 4 (the maximum character length supported)
+      postgres_limit = (attributes['character_maximum_length'] || 256).to_i
+      redshift_limit = postgres_limit * 4
+      "character_varying (#{redshift_limit})"
+    else
+      CAST_TYPES_FOR_COPY[data_type] || data_type
+    end
   end
 
   private
