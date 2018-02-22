@@ -33,7 +33,7 @@ class PostgresToRedshift
         ddl << "#{schema}.#{target_connection.quote_ident(table.target_table_name)} "
         ddl << '('
         ddl << "#{table.columns_for_create}"
-        ddl << ", primary key(#{table.primary_key})" if table.primary_key
+        ddl << ", primary key(#{table.primary_key.map {|name| %Q["#{name}"]}.join(', ')})" if table.primary_key && !table.primary_key.empty?
         ddl << ')'
         target_connection.exec(ddl)
       end
@@ -98,7 +98,7 @@ class PostgresToRedshift
             SELECT
                 n.nspname AS table_schema,
                 c.relname AS table_name,
-                f.attname AS primary_key
+                array_agg(f.attname ORDER BY array_position(p.conkey, f.attnum)) AS primary_key
             FROM pg_attribute f
                 JOIN pg_class c ON c.oid = f.attrelid
                 JOIN pg_type t ON t.oid = f.atttypid
@@ -110,7 +110,7 @@ class PostgresToRedshift
                 AND n.nspname = '#{schema}'  
                 AND p.contype = 'p' 
                 AND f.attnum > 0
-            ORDER BY f.attnum, n.nspname
+            group by ( n.nspname, c.relname)
         ) a USING (table_schema, table_name)
         WHERE table_schema = '#{schema}' 
             AND #{copy_table_type}
