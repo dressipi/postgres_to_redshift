@@ -127,7 +127,6 @@ class PostgresToRedshift
         DISTINCT table_schema 
       FROM information_schema.tables
       WHERE ( table_schema LIKE '#{SCHEMA_PREFIX}%' OR table_schema LIKE '#{SECONDARY_SCHEMA_PREFIX}%' OR table_schema IN (#{SPECIAL_SCHEMA}))
-        AND table_schema != 'activity_template'
         AND table_schema NOT LIKE 'activity_%_stage'
     _SQL
   end
