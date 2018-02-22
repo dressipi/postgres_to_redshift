@@ -78,6 +78,12 @@ class PostgresToRedshift::Column
     attributes["data_type"]
   end
 
+  def null_constraint
+    if attributes["is_nullable"] == 'NO'
+      " NOT NULL"
+    end
+  end
+
   def data_type_for_copy
     case data_type
     when 'character varying'
