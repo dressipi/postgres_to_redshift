@@ -52,8 +52,23 @@ class PostgresToRedshift
       attributes['primary_key']
     end
 
+    def primary_key_columns
+      parse_array(attributes['primary_key'])
+    end
+
     def is_view?
       attributes["table_type"] == "VIEW"
+    end
+
+    private
+
+    def parse_array string
+      #this is very naive and doesn't try to handle the complicated cases
+      #because our table names don't contain values such as space or comma
+
+      string.split(',').map do |candidate|
+        candidate.gsub(/[{}"]/, '')
+      end
     end
   end
 end
