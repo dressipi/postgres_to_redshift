@@ -83,8 +83,12 @@ class PostgresToRedshift::Column
     when 'character varying'
       #postgres counts in characters but redshift counts in bytes
       #so we need to multiply by 4 (the maximum character length supported)
-      postgres_limit = (attributes['character_maximum_length'] || 256).to_i
-      redshift_limit = postgres_limit * 4
+
+      postgres_limit = attributes['character_maximum_length']&.to_i
+      #in the postgres world no limit means that - no limit
+      #but in the postgres world, that means max of 256 (bytes)
+      #so we convert that to the biggest redshift supports
+      redshift_limit = postgres_limit ? [postgres_limit * 4, 65535].min : 'MAX'
       "character varying(#{redshift_limit})"
     else
       CAST_TYPES_FOR_COPY[data_type] || data_type
