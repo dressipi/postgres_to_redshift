@@ -56,6 +56,7 @@ class PostgresToRedshift::Column
     'uuid' => "CHAR(36)",
     "ARRAY" => "CHARACTER VARYING(65535)",
     "USER-DEFINED" => "CHARACTER VARYING(65535)",
+    "boolean" => "smallint"
   }
 
   def initialize(attributes: )
@@ -82,6 +83,10 @@ class PostgresToRedshift::Column
     if attributes["is_nullable"] == 'NO'
       " NOT NULL"
     end
+  end
+
+  def skip?
+    name =~ /_shadow_/
   end
 
   def data_type_for_copy

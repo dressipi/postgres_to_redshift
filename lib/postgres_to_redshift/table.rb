@@ -17,7 +17,7 @@ class PostgresToRedshift
 
     def initialize(attributes: , columns: [])
       self.attributes = attributes
-      self.columns = columns
+      self.columns = columns.reject {|column| column.skip?}
     end
 
     def name
