@@ -9,6 +9,7 @@ opts = OptionParser.new do |o|
   o.on('-d', '--dry-run') {dry_run = true}
 end
 
+opts.parse!
 
 conn = PostgresToRedshift.new(dbname: nil, dry_run: dry_run)
 conn.update_tables
