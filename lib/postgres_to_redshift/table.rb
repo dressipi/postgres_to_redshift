@@ -17,7 +17,7 @@ class PostgresToRedshift
 
     def initialize(attributes: , columns: [])
       self.attributes = attributes
-      self.columns = columns.reject {|column| column.skip?}
+      self.columns = columns
     end
 
     def name
@@ -33,7 +33,7 @@ class PostgresToRedshift
     def columns=(column_definitions = [])
       @columns = column_definitions.map do |column_definition|
         Column.new(attributes: column_definition)
-      end
+      end.reject {|column| column.skip?}
     end
 
     def columns_for_create
