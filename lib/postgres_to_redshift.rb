@@ -143,6 +143,7 @@ class PostgresToRedshift
     source_connection.exec(table_select_sql(schema: schema)).map do |table_attributes|
       table = Table.new(attributes: table_attributes)
       next if table.name =~ /^pg_/
+      next if table.name =~ /^temp_/
       table.columns = column_definitions(table: table, schema: schema)
       table
     end.compact
