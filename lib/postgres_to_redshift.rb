@@ -21,7 +21,7 @@ class PostgresToRedshift
   SPECIAL_SCHEMA = ['\'shared_resources\''].join(', ')
 
   def create_database(database_name:)
-    target_connection.exec("DROP DATABASE #{database_name}") unless database_exist? database_name
+    target_connection.exec("DROP DATABASE #{database_name}") if database_exist? database_name
     target_connection.exec("CREATE DATABASE #{database_name}") 
   end
 
