@@ -86,7 +86,7 @@ class PostgresToRedshift::Column
   end
 
   def skip?
-    name =~ /_shadow_/
+    name =~ /_shadow_/ || name =~ /_replication_/
   end
 
   def data_type_for_copy
