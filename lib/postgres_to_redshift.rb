@@ -5,12 +5,14 @@ require "postgres_to_redshift/table"
 require "postgres_to_redshift/column"
 
 class PostgresToRedshift
-  attr_reader :dbname, :dbuser, :dbpwd, :dry_run, :drop_db, :restrict_to_schemas
+  attr_reader :dbname, :dbuser, :dbpwd, :dry_run, :drop_db, :restrict_to_schemas, :target_uri
 
-  def initialize(dbname:, dbuser: nil, dbpwd: nil, dry_run: false, drop_db: false, restrict_to_schemas: nil, schema_only: false)
+  def initialize(dbname:, dbuser: nil, dbpwd: nil, dry_run: false, drop_db: false, restrict_to_schemas: nil, schema_only: false,
+                target_uri: nil)
     @dbname = dbname
     @dbuser = dbuser
     @dbpwd = dbpwd
+    @target_uri = target_uri && URI.parse(target_uri)
     @dry_run = dry_run || schema_only
     @schema_only = schema_only
     @drop_db = drop_db
@@ -51,7 +53,7 @@ class PostgresToRedshift
   end
 
   def target_uri
-    @target_uri ||= URI.parse(ENV['REDSHIFT_URI'])
+    @target_uri
   end
 
   def source_connection

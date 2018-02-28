@@ -7,14 +7,16 @@ dry_run = false
 drop_db = false
 schemas = nil
 schema_only = false
+target_uri = nil
 opts = OptionParser.new do |o|
   o.on('-d', '--dry-run') {dry_run = true}
   o.on('--drop') {drop_db = true}
   o.on('-n', '--no-target', 'do not connect to target; just output schema') { schema_only = true }
   o.on('--schemas SCHEMAS', Array) {|value| schemas = value}
+  o.on('--target REDSHIFT_URI', '-t REDSHIFT_URI') {|value| target_uri = value}
 end
 
 opts.parse!
 
-conn = PostgresToRedshift.new(dbname: nil, dry_run: dry_run, drop_db: drop_db, restrict_to_schemas: schemas)
+conn = PostgresToRedshift.new(dbname: nil, dry_run: dry_run, drop_db: drop_db, restrict_to_schemas: schemas, target_uri: target_uri)
 conn.update_tables
