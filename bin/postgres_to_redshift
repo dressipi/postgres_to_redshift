@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 require 'postgres_to_redshift'
 default_dbname = 'redshift'
-conn = PostgresToRedshift.new(dbname: default_dbname)
+conn = PostgresToRedshift.new(dbname: default_dbname, drop_db: true)
 
 database_names = %w(jessica jjg yisheng nick daria fred)
 begin

@@ -4,12 +4,15 @@ require 'optparse'
 require_relative '../lib/postgres_to_redshift'
 
 dry_run = false
-
+drop_db = false
+schemas = nil
 opts = OptionParser.new do |o|
   o.on('-d', '--dry-run') {dry_run = true}
+  o.on('--drop') {drop_db = true}
+  o.on('--schemas SCHEMAS', Array) {|value| schemas = value}
 end
 
 opts.parse!
 
-conn = PostgresToRedshift.new(dbname: nil, dry_run: dry_run)
+conn = PostgresToRedshift.new(dbname: nil, dry_run: dry_run, drop_db: drop_db, restrict_to_schemas: schemas)
 conn.update_tables

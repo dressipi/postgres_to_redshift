@@ -5,13 +5,15 @@ require "postgres_to_redshift/table"
 require "postgres_to_redshift/column"
 
 class PostgresToRedshift
-  attr_reader :dbname, :dbuser, :dbpwd, :dry_run
+  attr_reader :dbname, :dbuser, :dbpwd, :dry_run, :drop_db, :restrict_to_schemas
 
-  def initialize(dbname:, dbuser: nil, dbpwd: nil, dry_run: false)
+  def initialize(dbname:, dbuser: nil, dbpwd: nil, dry_run: false, drop_db: false, restrict_to_schemas: nil)
     @dbname = dbname
     @dbuser = dbuser
     @dbpwd = dbpwd
     @dry_run = dry_run
+    @drop_db = drop_db
+    @restrict_to_schemas = restrict_to_schemas
   end
 
   KILOBYTE = 1024
@@ -22,8 +24,12 @@ class PostgresToRedshift
   SPECIAL_SCHEMA = ['\'shared_resources\''].join(', ')
 
   def create_database(database_name:)
-    exec_or_log("DROP DATABASE #{database_name}") if database_exist? database_name
-    exec_or_log("CREATE DATABASE #{database_name}") 
+    if drop_db
+      exec_or_log("DROP DATABASE #{database_name}") if database_exist? database_name
+      exec_or_log("CREATE DATABASE #{database_name}") 
+    else
+      exec_or_log("CREATE DATABASE #{database_name}") unless database_exist? database_name
+    end
   end
 
   def update_tables
@@ -135,9 +141,15 @@ class PostgresToRedshift
   end
 
   def schemas
-    source_connection.exec(schema_select_sql).map do |schema|
+    available_schemas =source_connection.exec(schema_select_sql).map do |schema|
       schema['table_schema']
     end.compact
+
+    if restrict_to_schemas
+      restrict_to_schemas & available_schemas
+    else
+      available_schemas
+    end
   end
 
   def tables(schema:)
