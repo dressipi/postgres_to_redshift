@@ -7,11 +7,12 @@ require "postgres_to_redshift/column"
 class PostgresToRedshift
   attr_reader :dbname, :dbuser, :dbpwd, :dry_run, :drop_db, :restrict_to_schemas
 
-  def initialize(dbname:, dbuser: nil, dbpwd: nil, dry_run: false, drop_db: false, restrict_to_schemas: nil)
+  def initialize(dbname:, dbuser: nil, dbpwd: nil, dry_run: false, drop_db: false, restrict_to_schemas: nil, schema_only: false)
     @dbname = dbname
     @dbuser = dbuser
     @dbpwd = dbpwd
-    @dry_run = dry_run
+    @dry_run = dry_run || schema_only
+    @schema_only = schema_only
     @drop_db = drop_db
     @restrict_to_schemas = restrict_to_schemas
   end
@@ -81,13 +82,23 @@ class PostgresToRedshift
   end
 
   def schema_exist?(schema)
-    schema_exist_query = "SELECT 1 FROM information_schema.schemata WHERE schema_name = '#{schema}'"
-    !target_connection.exec(schema_exist_query).values.empty?
+    if schema_only
+      #in schema only mode, there is no target connection
+      false  
+    else
+      schema_exist_query = "SELECT 1 FROM information_schema.schemata WHERE schema_name = '#{schema}'"
+      !target_connection.exec(schema_exist_query).values.empty?
+    end
   end
 
   def database_exist?(database_name)
-    db_exist_query = "SELECT 1 AS result FROM pg_database WHERE datname='#{database_name}'"
-    !target_connection.exec(db_exist_query).values.empty?
+    if schema_only
+      #in schema only mode, there is no target connection
+      false
+    else
+      db_exist_query = "SELECT 1 AS result FROM pg_database WHERE datname='#{database_name}'"
+      !target_connection.exec(db_exist_query).values.empty?
+    end
   end
 
   def copy_table_type
