@@ -33,12 +33,12 @@ class PostgresToRedshift
     def columns=(column_definitions = [])
       @columns = column_definitions.map do |column_definition|
         Column.new(attributes: column_definition)
-      end
+      end.reject {|column| column.skip?}
     end
 
     def columns_for_create
       columns.map do |column|
-        %Q["#{column.name}" #{column.data_type_for_copy}]
+        %Q["#{column.name}" #{column.data_type_for_copy}#{column.null_constraint}]
       end.join(", ")
     end
 
@@ -52,8 +52,23 @@ class PostgresToRedshift
       attributes['primary_key']
     end
 
+    def primary_key_columns
+      parse_array(attributes['primary_key'])
+    end
+
     def is_view?
       attributes["table_type"] == "VIEW"
+    end
+
+    private
+
+    def parse_array string
+      #this is very naive and doesn't try to handle the complicated cases
+      #because our table names don't contain values such as space or comma
+
+      string.split(',').map do |candidate|
+        candidate.gsub(/[{}"]/, '')
+      end
     end
   end
 end

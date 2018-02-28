@@ -5,12 +5,13 @@ require "postgres_to_redshift/table"
 require "postgres_to_redshift/column"
 
 class PostgresToRedshift
-  attr_reader :dbname, :dbuser, :dbpwd
+  attr_reader :dbname, :dbuser, :dbpwd, :dry_run
 
-  def initialize(dbname:, dbuser: nil, dbpwd: nil)
+  def initialize(dbname:, dbuser: nil, dbpwd: nil, dry_run: false)
     @dbname = dbname
     @dbuser = dbuser
     @dbpwd = dbpwd
+    @dry_run = dry_run
   end
 
   KILOBYTE = 1024
@@ -21,22 +22,23 @@ class PostgresToRedshift
   SPECIAL_SCHEMA = ['\'shared_resources\''].join(', ')
 
   def create_database(database_name:)
-    target_connection.exec("DROP DATABASE #{database_name}") if database_exist? database_name
-    target_connection.exec("CREATE DATABASE #{database_name}") 
+    exec_or_log("DROP DATABASE #{database_name}") if database_exist? database_name
+    exec_or_log("CREATE DATABASE #{database_name}") 
   end
 
   def update_tables
     schemas.each do |schema| 
-      target_connection.exec("CREATE SCHEMA IF NOT EXISTS #{schema}") unless schema_exist? schema
+      exec_or_log("CREATE SCHEMA IF NOT EXISTS #{schema}") unless schema_exist? schema
 
       tables(schema: schema).each do |table|
+
         ddl = 'CREATE TABLE IF NOT EXISTS '
         ddl << "#{schema}.#{target_connection.quote_ident(table.target_table_name)} "
         ddl << '('
         ddl << "#{table.columns_for_create}"
-        ddl << ", primary key(#{table.primary_key})" if table.primary_key
+        ddl << ", primary key(#{table.primary_key_columns.map {|name| %Q["#{name}"]}.join(', ')})" if table.primary_key && table.primary_key_columns.any?
         ddl << ')'
-        target_connection.exec(ddl)
+        exec_or_log(ddl)
       end
     end
   end
@@ -99,7 +101,7 @@ class PostgresToRedshift
             SELECT
                 n.nspname AS table_schema,
                 c.relname AS table_name,
-                f.attname AS primary_key
+                array_agg(f.attname ORDER BY array_position(p.conkey, f.attnum)) AS primary_key
             FROM pg_attribute f
                 JOIN pg_class c ON c.oid = f.attrelid
                 JOIN pg_type t ON t.oid = f.atttypid
@@ -111,7 +113,7 @@ class PostgresToRedshift
                 AND n.nspname = '#{schema}'  
                 AND p.contype = 'p' 
                 AND f.attnum > 0
-            ORDER BY f.attnum, n.nspname
+            group by ( n.nspname, c.relname)
         ) a USING (table_schema, table_name)
         WHERE table_schema = '#{schema}' 
             AND #{copy_table_type}
@@ -142,6 +144,7 @@ class PostgresToRedshift
     source_connection.exec(table_select_sql(schema: schema)).map do |table_attributes|
       table = Table.new(attributes: table_attributes)
       next if table.name =~ /^pg_/
+      next if table.name =~ /^temp_/
       table.columns = column_definitions(table: table, schema: schema)
       table
     end.compact
@@ -155,5 +158,15 @@ class PostgresToRedshift
   def close_connections
     target_connection.close
     source_connection.close
+  end
+
+  private
+
+  def exec_or_log(statement)
+    if dry_run
+      puts statement
+    else
+      target_connection.exec(statement)
+    end
   end
 end
