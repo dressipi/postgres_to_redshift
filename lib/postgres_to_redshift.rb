@@ -63,30 +63,26 @@ class PostgresToRedshift
   end
 
   def source_connection
-    unless instance_variable_defined?(:"@source_connection")
-      @source_connection = PG::Connection.new(
+    @source_connection ||= begin
+      connection = PG::Connection.new(
         host: ENV.fetch('PGHOST'), 
         port: ENV.fetch('PGPORT'), 
         user: ENV.fetch('PGUSER'), 
         password: ENV.fetch('PGPASSWORD'), 
         dbname: ENV.fetch('PGDATABASE'))
-      @source_connection.exec("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+      connection.exec("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+      connection
     end
-
-    @source_connection
   end
 
   def target_connection
-    unless instance_variable_defined?(:"@target_connection")
-      @target_connection = PG::Connection.new(
+    @target_connection ||= PG::Connection.new(
         host: target_uri.host, 
         port: target_uri.port, 
         user: @dbuser || target_uri.user, 
         password: @dbpwd || target_uri.password, 
         dbname: @dbname || target_uri.path.gsub('/', ''))
-    end
 
-    @target_connection
   end
 
   def schema_exist?(schema)
