@@ -1,21 +1,18 @@
 #!/usr/bin/env ruby
 require 'postgres_to_redshift'
-default_dbname = 'redshift'
-conn = PostgresToRedshift.new(dbname: default_dbname, drop_db: true)
 
 database_names = %w(jessica jjg yisheng nick daria fred)
-begin
-  database_names.each do |db_name|
-    %w(dev test).each do |env|
+database_names.each do |db_name|
+  %w(dev test).each do |env|
+    begin
       dbname = "#{db_name}_#{env}"
       puts "Initialising database: #{dbname}..."
-      conn.create_database(database_name: dbname)
-      conn.close_connections
-      conn = PostgresToRedshift.new(dbname: dbname)
+      conn = PostgresToRedshift.new(dbname: dbname, drop_db: true, target_uri: ENV.fetch('REDSHIFT_URI'))
+      conn.create_database
       conn.update_tables
       puts "Database: #{dbname} has been created"
+    ensure
+      conn.close_connections
     end
   end
-ensure
-  conn.close_connections
 end

@@ -32,12 +32,12 @@ class PostgresToRedshift
   SECONDARY_SCHEMA_PREFIX = 'subapp_'
   SPECIAL_SCHEMA = ['\'shared_resources\''].join(', ')
 
-  def create_database(database_name:)
+  def create_database
     if drop_db
-      exec_or_log("DROP DATABASE #{database_name}") if database_exist? database_name
+      exec_or_log("DROP DATABASE #{database_name}") if database_exist? dbname
       exec_or_log("CREATE DATABASE #{database_name}") 
     else
-      exec_or_log("CREATE DATABASE #{database_name}") unless database_exist? database_name
+      exec_or_log("CREATE DATABASE #{database_name}") unless database_exist? dbname
     end
   end
 
