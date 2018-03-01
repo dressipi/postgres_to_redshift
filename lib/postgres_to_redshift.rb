@@ -189,8 +189,8 @@ class PostgresToRedshift
   end
 
   def close_connections
-    target_connection.close
-    source_connection.close
+    target_connection.close if @target_connection
+    source_connection.close if @source_connection
   end
 
   private
