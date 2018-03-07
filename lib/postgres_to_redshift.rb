@@ -7,16 +7,19 @@ require "postgres_to_redshift/column"
 class PostgresToRedshift
   attr_reader :dbname, :dbuser, :dbpwd, :dry_run, :drop_db, :target_uri
   attr_reader :restrict_to_tables, :restrict_to_schemas
+  attr_reader :drop_tables
 
   def initialize(dbname:, dbuser: nil, dbpwd: nil, dry_run: false, 
                 drop_db: false, 
                 restrict_to_schemas: nil, 
                 schema_only: false,
                 restrict_to_tables: nil,
-                target_uri: nil)
+                target_uri: nil,
+                drop_tables: false)
     @dbname = dbname
     @dbuser = dbuser
     @dbpwd = dbpwd
+    @drop_tables = drop_tables
     @target_uri = target_uri && URI.parse(target_uri)
     @dry_run = dry_run || schema_only
     @schema_only = schema_only
@@ -46,6 +49,9 @@ class PostgresToRedshift
       exec_or_log("CREATE SCHEMA IF NOT EXISTS #{schema}") unless schema_exist? schema
 
       tables(schema: schema).each do |table|
+        if drop_tables
+          exec_or_log "DROP TABLE IF EXISTS #{schema}.#{target_connection.quote_ident(table.target_table_name)} "
+        end
 
         ddl = 'CREATE TABLE IF NOT EXISTS '
         ddl << "#{schema}.#{target_connection.quote_ident(table.target_table_name)} "
