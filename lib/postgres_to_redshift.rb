@@ -185,7 +185,7 @@ class PostgresToRedshift
     if restrict_to_tables
       restrict_to_tables & available_tables
     else
-      restrict_to_tables
+      available_tables
     end
   end
 
