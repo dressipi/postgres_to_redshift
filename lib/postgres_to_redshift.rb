@@ -8,6 +8,7 @@ class PostgresToRedshift
   attr_reader :dbname, :dbuser, :dbpwd, :dry_run, :drop_db, :target_uri
   attr_reader :restrict_to_tables, :restrict_to_schemas
   attr_reader :drop_tables
+  attr_reader :schema_only
 
   def initialize(dbname:, dbuser: nil, dbpwd: nil, dry_run: false, 
                 drop_db: false, 
