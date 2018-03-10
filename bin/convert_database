@@ -25,6 +25,7 @@ opts.parse!
 conn = PostgresToRedshift.new(dbname: nil, dry_run: dry_run, 
                               drop_db: drop_db, 
                               drop_tables: drop_tables,
+                              schema_only: schema_only,
                               restrict_to_schemas: schemas,
                               restrict_to_tables: tables,
                               target_uri: target_uri)
