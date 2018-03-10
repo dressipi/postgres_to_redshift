@@ -175,19 +175,16 @@ class PostgresToRedshift
   end
 
   def tables(schema:)
-    available_tables = source_connection.exec(table_select_sql(schema: schema)).map do |table_attributes|
+    source_connection.exec(table_select_sql(schema: schema)).map do |table_attributes|
       table = Table.new(attributes: table_attributes)
       next if table.name =~ /^pg_/
       next if table.name =~ /^temp_/
+      if restrict_to_tables
+        next unless restrict_to_tables.include?(table.name)
+      end
       table.columns = column_definitions(table: table, schema: schema)
       table
     end.compact
-
-    if restrict_to_tables
-      restrict_to_tables & available_tables
-    else
-      available_tables
-    end
   end
 
   def column_definitions(table:, schema:)
