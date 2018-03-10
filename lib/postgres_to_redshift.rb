@@ -51,11 +51,11 @@ class PostgresToRedshift
 
       tables(schema: schema).each do |table|
         if drop_tables
-          exec_or_log "DROP TABLE IF EXISTS #{schema}.#{target_connection.quote_ident(table.target_table_name)} "
+          exec_or_log "DROP TABLE IF EXISTS #{schema}.#{quote_ident(table.target_table_name)} "
         end
 
         ddl = 'CREATE TABLE IF NOT EXISTS '
-        ddl << "#{schema}.#{target_connection.quote_ident(table.target_table_name)} "
+        ddl << "#{schema}.#{quote_ident(table.target_table_name)} "
         ddl << '('
         ddl << "#{table.columns_for_create}"
         ddl << ", primary key(#{table.primary_key_columns.map {|name| %Q["#{name}"]}.join(', ')})" if table.primary_key && table.primary_key_columns.any?
@@ -195,6 +195,10 @@ class PostgresToRedshift
   def close_connections
     target_connection.close if @target_connection
     source_connection.close if @source_connection
+  end
+
+  def quote_ident ident
+    source_connection.quote_ident ident
   end
 
   private
