@@ -5,13 +5,28 @@ require "postgres_to_redshift/table"
 require "postgres_to_redshift/column"
 
 class PostgresToRedshift
-  attr_reader :dbname, :dbuser, :dbpwd, :dry_run
+  attr_reader :dbname, :dbuser, :dbpwd, :dry_run, :drop_db, :target_uri
+  attr_reader :restrict_to_tables, :restrict_to_schemas
+  attr_reader :drop_tables
+  attr_reader :schema_only
 
-  def initialize(dbname:, dbuser: nil, dbpwd: nil, dry_run: false)
+  def initialize(dbname:, dbuser: nil, dbpwd: nil, dry_run: false, 
+                drop_db: false, 
+                restrict_to_schemas: nil, 
+                schema_only: false,
+                restrict_to_tables: nil,
+                target_uri: nil,
+                drop_tables: false)
     @dbname = dbname
     @dbuser = dbuser
     @dbpwd = dbpwd
-    @dry_run = dry_run
+    @drop_tables = drop_tables
+    @target_uri = target_uri && URI.parse(target_uri)
+    @dry_run = dry_run || schema_only
+    @schema_only = schema_only
+    @drop_db = drop_db
+    @restrict_to_schemas = restrict_to_schemas
+    @restrict_to_tables = restrict_to_tables
   end
 
   KILOBYTE = 1024
@@ -21,9 +36,13 @@ class PostgresToRedshift
   SECONDARY_SCHEMA_PREFIX = 'subapp_'
   SPECIAL_SCHEMA = ['shared_resources', 'shared_functions'].map{|schema| "\'#{schema}\'"}.join(', ')
 
-  def create_database(database_name:)
-    exec_or_log("DROP DATABASE #{database_name}") if database_exist? database_name
-    exec_or_log("CREATE DATABASE #{database_name}") 
+  def create_database
+    if drop_db
+      exec_or_log("DROP DATABASE #{database_name}") if database_exist? dbname
+      exec_or_log("CREATE DATABASE #{database_name}") 
+    else
+      exec_or_log("CREATE DATABASE #{database_name}") unless database_exist? dbname
+    end
   end
 
   def update_tables
@@ -31,9 +50,12 @@ class PostgresToRedshift
       exec_or_log("CREATE SCHEMA IF NOT EXISTS #{schema}") unless schema_exist? schema
 
       tables(schema: schema).each do |table|
+        if drop_tables
+          exec_or_log "DROP TABLE IF EXISTS #{schema}.#{quote_ident(table.target_table_name)} "
+        end
 
         ddl = 'CREATE TABLE IF NOT EXISTS '
-        ddl << "#{schema}.#{target_connection.quote_ident(table.target_table_name)} "
+        ddl << "#{schema}.#{quote_ident(table.target_table_name)} "
         ddl << '('
         ddl << "#{table.columns_for_create}"
         ddl << ", primary key(#{table.primary_key_columns.map {|name| %Q["#{name}"]}.join(', ')})" if table.primary_key && table.primary_key_columns.any?
@@ -44,44 +66,50 @@ class PostgresToRedshift
   end
 
   def target_uri
-    @target_uri ||= URI.parse(ENV['REDSHIFT_URI'])
+    @target_uri
   end
 
   def source_connection
-    unless instance_variable_defined?(:"@source_connection")
-      @source_connection = PG::Connection.new(
+    @source_connection ||= begin
+      connection = PG::Connection.new(
         host: ENV.fetch('PGHOST'), 
         port: ENV.fetch('PGPORT'), 
         user: ENV.fetch('PGUSER'), 
         password: ENV.fetch('PGPASSWORD'), 
         dbname: ENV.fetch('PGDATABASE'))
-      @source_connection.exec("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+      connection.exec("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+      connection
     end
-
-    @source_connection
   end
 
   def target_connection
-    unless instance_variable_defined?(:"@target_connection")
-      @target_connection = PG::Connection.new(
+    @target_connection ||= PG::Connection.new(
         host: target_uri.host, 
         port: target_uri.port, 
         user: @dbuser || target_uri.user, 
         password: @dbpwd || target_uri.password, 
         dbname: @dbname || target_uri.path.gsub('/', ''))
-    end
 
-    @target_connection
   end
 
   def schema_exist?(schema)
-    schema_exist_query = "SELECT 1 FROM information_schema.schemata WHERE schema_name = '#{schema}'"
-    !target_connection.exec(schema_exist_query).values.empty?
+    if schema_only
+      #in schema only mode, there is no target connection
+      false  
+    else
+      schema_exist_query = "SELECT 1 FROM information_schema.schemata WHERE schema_name = '#{schema}'"
+      !target_connection.exec(schema_exist_query).values.empty?
+    end
   end
 
   def database_exist?(database_name)
-    db_exist_query = "SELECT 1 AS result FROM pg_database WHERE datname='#{database_name}'"
-    !target_connection.exec(db_exist_query).values.empty?
+    if schema_only
+      #in schema only mode, there is no target connection
+      false
+    else
+      db_exist_query = "SELECT 1 AS result FROM pg_database WHERE datname='#{database_name}'"
+      !target_connection.exec(db_exist_query).values.empty?
+    end
   end
 
   def copy_table_type
@@ -134,9 +162,15 @@ class PostgresToRedshift
   end
 
   def schemas
-    source_connection.exec(schema_select_sql).map do |schema|
+    available_schemas = source_connection.exec(schema_select_sql).map do |schema|
       schema['schema_name']
     end.compact
+
+    if restrict_to_schemas
+      restrict_to_schemas & available_schemas
+    else
+      available_schemas
+    end
   end
 
   def tables(schema:)
@@ -144,6 +178,9 @@ class PostgresToRedshift
       table = Table.new(attributes: table_attributes)
       next if table.name =~ /^pg_/
       next if table.name =~ /^temp_/
+      if restrict_to_tables
+        next unless restrict_to_tables.include?(table.name)
+      end
       table.columns = column_definitions(table: table, schema: schema)
       table
     end.compact
@@ -155,8 +192,12 @@ class PostgresToRedshift
   end
 
   def close_connections
-    target_connection.close
-    source_connection.close
+    target_connection.close if @target_connection
+    source_connection.close if @source_connection
+  end
+
+  def quote_ident ident
+    source_connection.quote_ident ident
   end
 
   private
