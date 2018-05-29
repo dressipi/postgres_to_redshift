@@ -205,7 +205,7 @@ class PostgresToRedshift
 
   def exec_or_log(statement)
     if dry_run
-      puts statement
+      puts "#{statement};"
     else
       target_connection.exec(statement)
     end
