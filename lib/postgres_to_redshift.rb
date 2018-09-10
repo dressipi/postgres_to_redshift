@@ -34,7 +34,7 @@ class PostgresToRedshift
   GIGABYTE = MEGABYTE * 1024
   SCHEMA_PREFIX = 'activity_'
   SECONDARY_SCHEMA_PREFIX = 'subapp_'
-  SPECIAL_SCHEMA = ['\'shared_resources\''].join(', ')
+  SPECIAL_SCHEMA = ['shared_resources', 'shared_functions'].map{|schema| "\'#{schema}\'"}.join(', ')
 
   def create_database
     if drop_db
@@ -153,18 +153,17 @@ class PostgresToRedshift
   end
 
   def schema_select_sql
-    <<-_SQL
-      SELECT 
-        DISTINCT table_schema 
-      FROM information_schema.tables
-      WHERE ( table_schema LIKE '#{SCHEMA_PREFIX}%' OR table_schema LIKE '#{SECONDARY_SCHEMA_PREFIX}%' OR table_schema IN (#{SPECIAL_SCHEMA}))
-        AND table_schema NOT LIKE 'activity_%_stage'
-    _SQL
+    <<-SQL
+      SELECT schema_name
+      FROM information_schema.schemata
+      WHERE ( schema_name LIKE '#{SCHEMA_PREFIX}%' OR schema_name LIKE '#{SECONDARY_SCHEMA_PREFIX}%' OR schema_name IN (#{SPECIAL_SCHEMA}))
+        AND schema_name NOT LIKE '%_stage'
+    SQL
   end
 
   def schemas
-    available_schemas =source_connection.exec(schema_select_sql).map do |schema|
-      schema['table_schema']
+    available_schemas = source_connection.exec(schema_select_sql).map do |schema|
+      schema['schema_name']
     end.compact
 
     if restrict_to_schemas
